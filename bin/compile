@@ -4,19 +4,16 @@
 # fail fast
 set -e
 
-# Heroku Revision.
-#
-# Affixed to all vendored binary output to represent changes to the
-# compilation environment without a change to the upstream version,
-# e.g. PHP 5.3.27 without, and then subsequently with, libmcrypt.
-heroku_rev='-2'
-
 # config
-MCRYPT_VERSION="2.5.8"
-APACHE_VERSION="2.2.25"
+APACHE_VERSION="2.4.4"
 APACHE_PATH="apache"
-PHP_VERSION="5.3.27"
+
+PHP_VERSION="5.4.14"
 PHP_PATH="php"
+
+MEMCACHED_VERSION="1.4.15"
+MEMCACHED_PATH='memcached'
+
 
 BIN_DIR=$(dirname $0)
 BUILD_DIR=$1
@@ -28,25 +25,27 @@ shopt -s dotglob
 
 cd $BUILD_DIR
 
-# move app things to www
+# Movendo a aplicação para a pasta www
 mkdir -p $CACHE_DIR/www
 mv * $CACHE_DIR/www
 mv $CACHE_DIR/www .
 
-# keep Procfile
 if [ -f www/Procfile ]; then
   mv www/Procfile .
 fi
 
-MCRYPT_URL="https://heroku-buildpack-php.s3.amazonaws.com/mcrypt-""$MCRYPT_VERSION""$heroku_rev"".tar.gz"
-echo "-----> Bundling mcrypt version $MCRYPT_VERSION"
-curl --silent --max-time 60 --location "$MCRYPT_URL" | tar xz
+# Apache Dependencies package
+APACHE_DEPENDENCIES_URL="https://dl.dropboxusercontent.com/u/954001/heroku/apache/apache-$APACHE_VERSION-dependencies.tar.gz"
+echo "-----> Bundling Apache version $APACHE_VERSION dependencies "
+curl --silent --max-time 60 --location "$APACHE_DEPENDENCIES_URL" | tar xz
 
-APACHE_URL="https://heroku-buildpack-php.s3.amazonaws.com/apache-""$APACHE_VERSION""$heroku_rev"".tar.gz"
+# Apache package
+APACHE_URL="https://dl.dropboxusercontent.com/u/954001/heroku/apache/apache-$APACHE_VERSION.tar.gz"
 echo "-----> Bundling Apache version $APACHE_VERSION"
 curl --silent --max-time 60 --location "$APACHE_URL" | tar xz
 
-PHP_URL="https://heroku-buildpack-php.s3.amazonaws.com/php-$PHP_VERSION""$heroku_rev"".tar.gz"
+# PHP package
+PHP_URL="https://dl.dropboxusercontent.com/u/954001/heroku/php/php-$PHP_VERSION.tar.gz"
 echo "-----> Bundling PHP version $PHP_VERSION"
 curl --silent --max-time 60 --location "$PHP_URL" | tar xz
 
