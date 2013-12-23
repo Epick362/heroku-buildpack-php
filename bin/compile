@@ -50,45 +50,55 @@ PHP_URL="https://heroku-buildpack-php.s3.amazonaws.com/php-$PHP_VERSION""$heroku
 echo "-----> Bundling PHP version $PHP_VERSION"
 curl --silent --max-time 60 --location "$PHP_URL" | tar xz
 
-# update config files
+# Memcached
+MEMCACHED_URL="https://dl.dropboxusercontent.com/u/954001/heroku/mencached/memcached-$MEMCACHED_VERSION.tar.gz"
+echo "-----> Bundling Mencached version $MEMCACHED_VERSION"
+curl --silent --max-time 60 --location "$MEMCACHED_URL" | tar xz
+
+
+# Sobrescrevendo o arquivo de configuração do PHP
+mkdir -p $APACHE_PATH/conf
 cp $LP_DIR/conf/httpd.conf $APACHE_PATH/conf
+
+# Sobrescrevendo o arquivo de configuração do PHP
 cp $LP_DIR/conf/php.ini php
 
-mkdir -p ${BUILD_DIR}/vendor/php
-tar xzf ${PHP_FILE} -C ${BUILD_DIR}/vendor/php
-
-# create extension dir for php
-if [ ! -f "${BUILD_DIR}/vendor/php/ext" ]
-then
-    mkdir ${BUILD_DIR}/vendor/php/ext
+if [ -f www/composer.json ] && [ ! -d www/vendor ]; then
+  GIT_DIR_ORIG=$GIT_DIR
+  unset GIT_DIR
+  echo "-----> Installing Composer dependencies"
+  COMPOSER_URL="http://getcomposer.org/composer.phar"
+  curl --silent --max-time 60 --location "$COMPOSER_URL" > www/composer.phar
+  cd www
+  LD_LIBRARY_PATH=$BUILD_DIR/php/lib/php/extensions/no-debug-zts-20100525 $BUILD_DIR/php/bin/php -c $LP_DIR/conf/php.ini composer.phar install --prefer-source
+  cd $BUILD_DIR
+  rm www/composer.phar
+  export GIT_DIR=$GIT_DIR_ORIG
 fi
-
-# copy mongo.so
-cp $LP_DIR/ext/mongo.so ${BUILD_DIR}/vendor/php/ext/mongo.so
-
-# make php available on bin
-mkdir -p bin
-ln -s /app/php/bin/php bin/php
 
 cat >>boot.sh <<EOF
 for var in \`env|cut -f1 -d=\`; do
   echo "PassEnv \$var" >> /app/apache/conf/httpd.conf;
 done
 
-#Enabled mod_deflate
-a2enmod deflate
-
 touch /app/apache/logs/error_log
 touch /app/apache/logs/access_log
+
 tail -F /app/apache/logs/error_log &
 tail -F /app/apache/logs/access_log &
-export LD_LIBRARY_PATH=/app/php/lib/php
+
 export PHP_INI_SCAN_DIR=/app/www
+export LD_LIBRARY_PATH=/app/php/lib/php/extensions/no-debug-zts-20100525
+
 echo "Launching apache"
-exec /app/apache/bin/httpd -DNO_DETACH
+exec /app/apache/bin/httpd -f /app/apache/conf/httpd.conf -DNO_DETACH
+
+echo "Launching mencached"
+exec /app/memcached/bin/mencached
+
 EOF
 
 chmod +x boot.sh
 
 # clean the cache
-rm -rf $CACHE_DIR
+rm -rf $CACHE_DIR/*
