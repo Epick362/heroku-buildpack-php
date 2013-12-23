@@ -54,14 +54,8 @@ curl --silent --max-time 60 --location "$PHP_URL" | tar xz
 cp $LP_DIR/conf/httpd.conf $APACHE_PATH/conf
 cp $LP_DIR/conf/php.ini php
 
-# create extension dir for php
-if [ ! -f "${BUILD_DIR}/vendor/php/ext" ]
-then
-    mkdir ${BUILD_DIR}/vendor/php/ext
-fi
-
 # copy mongo.so
-cp $LP_DIR/ext/mongo.so ${BUILD_DIR}/vendor/php/ext/mongo.so
+cp $LP_DIR/ext/mongo.so /app/apache/lib/mongo.so
 
 # make php available on bin
 mkdir -p bin
